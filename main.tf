@@ -1,5 +1,16 @@
+
+terraform {
+  backend "s3" {
+    bucket         = "tfstate0609"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "TfState"
+    encrypt        = true
+  }
+}
+
 provider "aws" {
-    region = "us-east-1"
+  region = "us-east-1"
 }
 
 resource "aws_vpc" "main" {
