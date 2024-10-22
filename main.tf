@@ -103,3 +103,48 @@ resource "aws_ecs_service" "fargate_service" {
     security_groups = [aws_security_group.ecs_sg.id]
   }
 }
+
+# Create an EventBridge rule to schedule the ECS task to run periodically
+resource "aws_cloudwatch_event_rule" "ecs_task_scheduler" {
+  name                = "ecs-task-scheduler"
+  description         = "Schedule ECS task to run periodically"
+  schedule_expression = "rate(1 hour)"  # Adjust the schedule as needed
+}
+ 
+# Create an EventBridge target to specify the ECS task to be run
+resource "aws_cloudwatch_event_target" "ecs_task_target" {
+  rule      = aws_cloudwatch_event_rule.ecs_task_scheduler.name
+  arn       = aws_ecs_cluster.fargate_cluster.arn
+  role_arn  = aws_iam_role.ecs_task_execution_role.arn
+  ecs_target {
+    task_definition_arn = aws_ecs_task_definition.fargate_task.arn
+    task_count          = 1
+    launch_type         = "FARGATE"
+    network_configuration {
+      subnets         = [aws_subnet.subnet1.id, aws_subnet.subnet2.id]
+      security_groups = [aws_security_group.ecs_sg.id]
+      assign_public_ip = true
+    }
+  }
+}
+ 
+# Allow EventBridge to invoke ECS tasks by attaching the necessary policy to the IAM role
+resource "aws_iam_role_policy" "allow_eventbridge_to_invoke_ecs" {
+  name   = "AllowEventBridgeToInvokeECS"
+  role   = aws_iam_role.ecs_task_execution_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "ecs:RunTask"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = "iam:PassRole"
+        Resource = "*"
+      }
+    ]
+  })
+}
